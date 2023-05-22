@@ -51,4 +51,58 @@ public class Processor
         this.Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
     }
+
+    // 0xAA
+    public void TAB()
+    {
+        this.B = this.A;
+    }
+
+    // 0xA8
+    public void TAC()
+    {
+        this.C = this.A;
+    }
+
+    // 0xBA
+    public void TSB()
+    {
+        this.B = this.StackPointer;
+    }
+
+    // 0x8A
+    public void TBA()
+    {
+        this.A = this.B;
+    }
+
+    //0x9A
+    public void TBS()
+    {
+        this.StackPointer = this.B;
+    }
+
+    // 0x98
+    public void TCA()
+    {
+        this.A = this.C;
+    }
+
+    // 0x38
+    public void SEC()
+    {
+        this.Flag |= (1 < 0);
+    }
+
+    // 0xF8
+    public void SED()
+    {
+        this.Flag |= (1 < 3);
+    }
+
+    // 0x78
+    public void SEI()
+    {
+        this.Flag |= (1 < 2);
+    }
 }
