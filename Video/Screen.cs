@@ -15,10 +15,11 @@ public class Screen
             Raylib.InitWindow(960, 720, "Hello, Raylib-CsLo");
             Raylib.SetTargetFPS(24);
             Raylib.SetTraceLogLevel(4); // LOG_WARNING
+
             while (!Raylib.WindowShouldClose())
             {
                 Raylib.BeginDrawing();
-                Raylib.ClearBackground(Raylib.GRAY);
+                Raylib.ClearBackground(Raylib.BLACK);
                 Raylib.EndDrawing();
             }
             Raylib.CloseWindow();

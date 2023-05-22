@@ -7,11 +7,7 @@ using Register = Byte;
 
 public class Processor
 {
-    Memory mem;
-
-    public Processor() {
-        mem = new Memory();
-    }
+    public Processor() { }
 
     private static Register A = 0;
     private static Register B = 0;
@@ -21,13 +17,38 @@ public class Processor
     private static byte  Flag               = 0;
     private static short InstructionPointer = 0; // also known as the program counter
 
-    public void RTI() {
-        Flag = mem.getByteAtAddress((short)(0x01FF - StackPointer));
+    public void RTI()
+    {
+        this.Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
-        byte highIP = mem.getByteAtAddress((short)(0x01FF - StackPointer));
+        byte highIP = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
-        byte lowIP  = mem.getByteAtAddress((short)(0x01FF - StackPointer));
+        byte lowIP  = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
-        InstructionPointer = (short)(highIP << 8 + lowIP);
+        this.InstructionPointer = ((short)(highIP) << 8 + (short)(lowIP));
+    }
+
+    public void PHA()
+    {
+        StackPointer--;
+        Memory.SetByteAtAddress((short)(0x01FF-StackPointer), this.A);
+    }
+
+    public void PHP()
+    {
+        StackPointer--;
+        Memory.SetByteAtAddress((short)(0x01FF - StackPointer), this.Flag);
+    }
+
+    public void PLA()
+    {
+        this.A = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
+        StackPointer++;
+    }
+
+    public void PLP()
+    {
+        this.Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
+        StackPointer++;
     }
 }
