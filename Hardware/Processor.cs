@@ -19,90 +19,90 @@ public class Processor
 
     public void RTI()
     {
-        this.Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
+        Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
         byte highIP = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
         byte lowIP  = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
-        this.InstructionPointer = ((short)(highIP) << 8 + (short)(lowIP));
+        InstructionPointer = (short)((short)(highIP << 8) + (short)(lowIP));
     }
 
     public void PHA()
     {
         StackPointer--;
-        Memory.SetByteAtAddress((short)(0x01FF-StackPointer), this.A);
+        Memory.SetByteAtAddress((short)(0x01FF-StackPointer), A);
     }
 
     public void PHP()
     {
         StackPointer--;
-        Memory.SetByteAtAddress((short)(0x01FF - StackPointer), this.Flag);
+        Memory.SetByteAtAddress((short)(0x01FF - StackPointer), Flag);
     }
 
     public void PLA()
     {
-        this.A = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
+        A = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
     }
 
     public void PLP()
     {
-        this.Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
+        Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
         StackPointer++;
     }
 
     // 0xAA
     public void TAB()
     {
-        this.B = this.A;
+        B = A;
     }
 
     // 0xA8
     public void TAC()
     {
-        this.C = this.A;
+        C = A;
     }
 
     // 0xBA
     public void TSB()
     {
-        this.B = this.StackPointer;
+        B = StackPointer;
     }
 
     // 0x8A
     public void TBA()
     {
-        this.A = this.B;
+        A = B;
     }
 
     //0x9A
     public void TBS()
     {
-        this.StackPointer = this.B;
+        StackPointer = B;
     }
 
     // 0x98
     public void TCA()
     {
-        this.A = this.C;
+        A = C;
     }
 
     // 0x38
     public void SEC()
     {
-        this.Flag |= (1 < 0);
+        Flag |= (1 << 0);
     }
 
     // 0xF8
     public void SED()
     {
-        this.Flag |= (1 < 3);
+        Flag |= (1 << 3);
     }
 
     // 0x78
     public void SEI()
     {
-        this.Flag |= (1 < 2);
+        Flag |= (1 << 2);
     }
 }

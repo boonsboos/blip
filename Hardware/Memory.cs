@@ -19,14 +19,14 @@ public static class Memory
     }
 
     // sets byte at address.
-    public static void GetByteAtAddress(byte hi, byte lo, byte data)
+    public static void SetByteAtAddress(byte hi, byte lo, byte data)
     {
-        this.mem[((short) hi << 8) + ((short) lo)] = data;
+        mem[((short) hi << 8) + ((short) lo)] = data;
     }
 
-    public static byte GetByteAtAddress(short addr, byte data)
+    public static void SetByteAtAddress(short addr, byte data)
     {
-        this.mem[addr] = data;
+        mem[addr] = data;
     }
 
     // the 0 address should always be 0;
