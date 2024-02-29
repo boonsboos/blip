@@ -1,4 +1,4 @@
-namespace Video;
+namespace blip.Video;
 
 using Raylib_CsLo;
 
@@ -7,19 +7,20 @@ using Raylib_CsLo;
 
 public class Screen
 {
-    public Task ?ScreenThread {get;}
+    public static Task ?ScreenThread {get;set;} // DANGER: do not change the screen thread.
 
     public Screen()
     {
-        this.ScreenThread = Task.Factory.StartNew( () => {
-            Raylib.InitWindow(960, 720, "Hello, Raylib-CsLo");
-            Raylib.SetTargetFPS(24);
+        ScreenThread = Task.Factory.StartNew( () => {
+            Raylib.InitWindow(760, 480, "blip");
+            Raylib.SetTargetFPS(100);
             Raylib.SetTraceLogLevel(4); // LOG_WARNING
 
             while (!Raylib.WindowShouldClose())
             {
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Raylib.BLACK);
+                Raylib.DrawRectangle(120, 0, 640, 480, Raylib.GRAY);
                 Raylib.EndDrawing();
             }
             Raylib.CloseWindow();

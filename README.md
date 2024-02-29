@@ -1,14 +1,14 @@
 # blip
-
 yeah it's a virtual computer with some cool stuff
+
+inspired by 6502 and RISC-V 32-bit architecture
 
 uses raylib for rendering
 
-c# for other stuff
-
-rewrite in C++ maybe?
+c# for everything else
 
 ## building
+requires .NET >= 8.0
 
-run `dotnet restore && dotnet build` and your executable will be in the bin folder
+using `dotnet` cli, run `dotnet restore && dotnet build`
 

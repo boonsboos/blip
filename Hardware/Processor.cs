@@ -1,201 +1,255 @@
-namespace Hardware;
+namespace blip.Hardware;
 
-// the BLIP processor is based on the instruction set and behaviour of the MOS 6502.
-// it is also simplified because we don't need every single instruction.
+using Raylib_CsLo;
 
-using Register = Byte;
-
+// based on RISC-V 1.0 ISA and MOS 6502
 public class Processor
 {
-    public Processor() { }
+    public static byte[] memory = new byte[32 * 1024 * 1024]; // 32 mib of ram
+    // no virtual address space, purely physical.
 
-    private static Register A = 0;
-    private static Register B = 0;
-    private static Register C = 0;
+    private uint[]   Registers = new uint[32];
+    private float[]  FloatRegs = new float[32];
 
-    private static byte  StackPointer       = 0; // 0x1FF - 0x0100
-    private static byte  Flag               = 0;
-    private static short InstructionPointer = 0; // also known as the program counter
+    // stack pointer is register x30.
 
-    // -------------------
-    // Implied addressing
-    // -------------------
+    private uint   InstructionPointer = 0; // also known as the program counter
+    // instruction pointer should never be memory length or greater
 
-    // 0x40
-    public void RTI()
-    {
-        Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
-        StackPointer++;
-        byte highIP = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
-        StackPointer++;
-        byte lowIP  = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
-        StackPointer++;
-        InstructionPointer = (short)((short)(highIP << 8) + (short)(lowIP));
+    private static readonly Dictionary<uint, InstructionType> instTypes = new Dictionary<uint, InstructionType>() {
+        /* Control transfer */
+        {0b1100111, InstructionType.J}, // J imm25
+        {0b1101111, InstructionType.J}, // JAL imm25
+        {0b1101011, InstructionType.I}, // JALR.C/R/J and RDNPC
+        /* Memory */
+        {0b0000011, InstructionType.I}, // L[BHW](U) rd, rs1, imm12
+        {0b0100011, InstructionType.B}, // S[BHW] imm12hi, rs1, rs2, imm12lo
+        /* Integer compute */
+        {0b0010011, InstructionType.I}, // all I-type compute instructions
+    };
+
+    public void Cycle(uint instruction) {
+        // TODO: fetch instruction instead of passing it in
+
+        decodeAndExecuteInstruction(instruction);
+
+        InstructionPointer += 4;
     }
 
-    // 0x48
-    public void PHA()
-    {
-        StackPointer--;
-        Memory.SetByteAtAddress((short)(0x01FF-StackPointer), A);
-    }
+    // all RISC-V 1.0 instructions are 32 bits wide
+    private void decodeAndExecuteInstruction(uint instruction) {
+        uint opcode = instruction & ((1 << 7) - 1); // get lower 7 bits
 
-    // 0x08
-    public void PHP()
-    {
-        StackPointer--;
-        Memory.SetByteAtAddress((short)(0x01FF - StackPointer), Flag);
-    }
+        switch(instTypes.GetValueOrDefault(opcode)) {
+            case InstructionType.J:
 
-    // 0x68
-    public void PLA()
-    {
-        A = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
-        StackPointer++;
-    }
-
-    // 0x28
-    public void PLP()
-    {
-        Flag = Memory.GetByteAtAddress((short)(0x01FF - StackPointer));
-        StackPointer++;
-    }
-
-    // 0xAA
-    public void TAB()
-    {
-        B = A;
-    }
-
-    // 0xA8
-    public void TAC()
-    {
-        C = A;
-    }
-
-    // 0xBA
-    public void TSB()
-    {
-        B = StackPointer;
-    }
-
-    // 0x8A
-    public void TBA()
-    {
-        A = B;
-    }
-
-    //0x9A
-    public void TBS()
-    {
-        StackPointer = B;
-    }
-
-    // 0x98
-    public void TCA()
-    {
-        A = C;
-    }
-
-    // 0x38
-    public void SEC()
-    {
-        Flag |= (1 << 0);
-    }
-
-    // 0xF8
-    public void SED()
-    {
-        Flag |= (1 << 3);
-    }
-
-    // 0x78
-    public void SEI()
-    {
-        Flag |= (1 << 2);
-    }
-
-    // 0xEA
-    public void NOP()
-    {
-        // do nothing
-    }
-
-    // 0xCA
-    public void DEB()
-    {
-        B--;
-    }
-
-    // 0x88
-    public void DEC()
-    {
-        C--;
-    }
-
-    // 0xE8
-    public void INB()
-    {
-        B++;
-    }
-
-    // 0xC8
-    public void INC()
-    {
-        C++;
-    }
-
-    // 0x00
-    public void BRK()
-    {
-        byte lowIP = (byte)((InstructionPointer+2 << 8) >> 8);
-        Memory.SetByteAtAddress((short)(0x1FFF - StackPointer), lowIP);
-        StackPointer--;
-
-        byte highIP = (byte)(InstructionPointer+2 >> 8);
-        Memory.SetByteAtAddress((short)(0x1FFF - StackPointer), highIP);
-        StackPointer--;
-
-        unchecked {
-            lowIP  = Memory.GetByteAtAddress((short)(0xFFFE));
-            highIP = Memory.GetByteAtAddress((short)(0xFFFF));
+                break;
+            case InstructionType.LUI:
+                break;
+            case InstructionType.I:
+                decodeAndExecuteITypeInstruction(instruction, opcode);
+                break;
+            case InstructionType.B:
+                break;
+            case InstructionType.R:
+                break;
+            case InstructionType.R4:
+                break;
         }
-        InstructionPointer = (short)((short)(highIP << 8) + (short)(lowIP));
     }
 
-    // 0x18
-    public void CLC()
-    {
-        Flag &= 1;
+    private void decodeAndExecuteITypeInstruction(uint instruction, uint opcode) {
+
+        uint option = 0b111 & (instruction >> 7);
+        int imm12 = (int) (0b111111111111 & (instruction >> 10));
+        if ((imm12 & (1 << 11)) == 1) {
+            imm12 &= ~(1<<11);
+            imm12 *= -1;
+        }
+        // imm12 is sign extended to 16 bits
+
+        uint rs1    = 0b11111 & (instruction >> 22);
+        uint rd     = 0b11111 & (instruction >> 27);
+
+        switch (opcode) {
+            case 0b0000011: // LOAD
+                LD(option, imm12, rs1, rd);
+                break;
+            case 0b0010011: // all I Type Compute Instructions
+                IntegerComputeForI(option, imm12, rs1, rd);
+                break;
+            case 0b1101011:
+                JALR(option, imm12, rs1, rd);
+                break;
+            default:
+                throw new CPUTrap($"Opcode {opcode} is not an I-type instruction.");
+        }
+
+        Raylib.DrawText(
+            opcode.ToString() + "\n" +
+            option.ToString() + "\n" +
+            imm12.ToString() + "\n" +
+            rs1.ToString() + "\n"+
+            rd.ToString(),
+            1, 1, 14, Raylib.RAYWHITE
+        );
     }
 
-    // 0xD8
-    public void CLD()
-    {
-        Flag &= (1 << 3);
+    private void LD(uint option, int imm12, uint rs1, uint rd) {
+        switch (option) {
+            case 0b000: // LB sign extend
+                Registers[rd] = memory[Registers[rs1]+imm12];
+                break;
+            case 0b001: // LH sign extend
+                Registers[rd] = ByteUtil.FromBytes(
+                    memory[Registers[rs1]+imm12],
+                    memory[Registers[rs1]+imm12+1]
+                );
+                break;
+            case 0b010: // LW sign extend
+                Registers[rd] = ByteUtil.FromBytes(
+                    memory[
+                        (int)(Registers[rs1]+imm12)..(int)(Registers[rs1]+imm12+3)
+                    ]
+                );
+                break;
+            case 0b100: // LB zero extend
+                Registers[rd] = memory[Registers[rs1]+imm12];
+                if (Registers[rd] > sbyte.MaxValue) { // flip the MSB
+                    Registers[rd] ^= 0x80000000;
+                }
+                break;
+            case 0b101: // LH zero extend
+                Registers[rd] = ByteUtil.FromBytes(
+                    memory[Registers[rs1]+imm12],
+                    memory[Registers[rs1]+imm12+1]
+                );
+                if (Registers[rd] > short.MaxValue) { // flip the MSB
+                    Registers[rd] ^= 0x80000000;
+                }
+                break;
+            case 0b110: // LW zero extend
+                Registers[rd] = ByteUtil.FromBytes(
+                    memory[
+                        (int)(Registers[rs1]+imm12)..(int)(Registers[rs1]+imm12+3)
+                    ]
+                );
+                if (Registers[rd] > int.MaxValue) { // flip the MSB
+                    Registers[rd] ^= 0x80000000;
+                }
+                break;
+        }
     }
 
-    // 0x58
-    public void CLI()
-    {
-        Flag &= (1 << 2);
+    private void IntegerComputeForI(uint option, int imm12, uint rs1, uint rd) {
+        switch (option) {
+            case 0b000: // ADDI
+                Registers[rd] = (uint)((int) Registers[rs1] + imm12);
+                // convert to int, then add those together
+                // next write the signed (sign-extended) value to the register
+                break;
+            case 0b001: // SLLI
+                if (imm12 >= 32) throw new CPUTrap("SLLI imm12 > 32");
+                Registers[rd] = Registers[rs1] << imm12;
+                break;
+            case 0b010: // SLTI
+                if ((int) Registers[rs1] < imm12) {
+                    Registers[rd] = 1;
+                } else {
+                    Registers[rd] = 0;
+                }
+                break;
+            case 0b011: // SLTIU
+                if (Registers[rs1] < (uint) imm12) {
+                    Registers[rd] = 1;
+                } else {
+                    Registers[rd] = 0;
+                }
+                break;
+            case 0b100: // XORI
+                Registers[rd] = Registers[rs1] ^ (uint) imm12;
+                break;
+            case 0b101: // SRLI
+                if (imm12 >= 32) throw new CPUTrap("SLRI imm12 > 32");
+                Registers[rd] = Registers[rs1] >> imm12;
+                break;
+            case 0b110: // ORI
+                Registers[rd] = Registers[rs1] | (uint) imm12;
+                break;
+            case 0b111: // ANDI
+                Registers[rd] = Registers[rs1] & (uint) imm12;
+                break;
+        }
     }
 
-    // 0xB8
-    public void CLV()
-    {
-        Flag &= (1 << 6);
+    private void JALR(uint option, int imm12, uint rs1, uint rd) {
+        switch (option) {
+            // these mean the exact same things
+            case 0b000: // JALR.C for subroutines
+            case 0b001: // JALR.R for returning
+            case 0b010: // JALR.J for indirect jumping
+                InstructionPointer = (uint)((long) Registers[rs1] + imm12);
+                Registers[rd] = InstructionPointer + 4;
+                break;
+            case 0b100: // RDNPC
+                Registers[rs1] = InstructionPointer + 4;
+                break;
+            default: 
+                throw new CPUTrap($"JALR does not support option {option}");
+        }
+    }
+}
+
+enum InstructionType
+{
+    J,
+    LUI,
+    I,
+    B,
+    R,
+    R4
+}
+
+/// <summary>
+/// Converts little endian memory to values 
+/// </summary>
+public class ByteUtil
+{
+    public static ushort FromBytes(byte a, byte b) {
+        return (ushort)((b << 8) + a);
     }
 
-    // -------------------
-    // A register addressing
-    // -------------------
-
-    // 0x0A
-    public void ASL()
-    {
-        if ((A | 0x7F) == 1) Flag++; // Sets the Carry flag, which is the lowest bit so this works.
-        Flag |= (byte)((A << 2) >> 7);
-        A <<= 1;
+    public static byte[] ToBytes(ushort a) {
+        return [(byte)(a & 0xFF), (byte)(a >> 8)];
     }
+
+    public static float FloatFromBytes(byte[] a) {
+        return (
+            (a[3] << 24) + 
+            (a[2] << 16) + 
+            (a[1] << 8) + 
+            a[0]
+        );
+    }
+
+    public static ushort FromBytes(byte[] a) {
+        return (ushort)( 
+            (a[1] << 8) + 
+            a[0]
+        );
+    }
+
+    public static byte[] ToBytes(uint a) {
+        return [
+            (byte)(a & 0x000000FF),
+            (byte)(a & 0x0000FF00 >> 8),
+            (byte)(a & 0x00FF0000 >> 16),
+            (byte)(a >> 24)
+        ];
+    }
+}
+
+class CPUTrap : Exception
+{
+    public CPUTrap(string message): base(message) { }
 }
